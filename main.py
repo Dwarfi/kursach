@@ -1,3 +1,9 @@
+#--------------------------------------------------
+#   Тема: створення додатка-помічника у подорожах -
+#   Хомин Віктор Андрійович СА-12                 -
+#   Павлишин Тетяна Андріївна СА-13               -
+#   Дата створення: 05.03.2021                    -
+#--------------------------------------------------
 import telebot
 from telebot import types
 from flask import Flask, request
@@ -5,6 +11,7 @@ import numpy as np
 import math
 import mysql.connector
 
+# Підключення бази даних
 database = mysql.connnector.connect(
     host = "localhost",
     user = "root",
@@ -17,82 +24,8 @@ cursor = database.cursor()
 app = Flask(__name__)
 bot = telebot.TeleBot('1724663886:AAGhkJY-sIz67hvpXAtX8gTjIbja8lBMEjQ', threaded=True)
 
-places = {
-    "Костел і монастир Бернардинів": {
-        "location": "49.84003013944798+24.034351053972166",
-        "category": "pab",
-    },
-    "Храм Успіння Пресвятої Богородиці": {
-        "location": "49.84261977664883+24.0344346247853",
-        "category": "cafe",
-        "description": """
-           My absolute favourite bar! 
-           Mai Tie cocktail is one love - really one of the best cocktails 
-           I’ve ever had! 
-           The food also great!
-    """
-    },
-    "Lviv National University Faculty of Economics": {
-        "location": "49.8425275+24.0280427",
-        "category": "science",
-        "description": """
-           My absolute favourite bar! 
-           Mai Tie cocktail is one love - really one of the best cocktails 
-           I’ve ever had! 
-           The food also great!
-    """
-    },
-    "Under Black Eagle": {
-        "location": "49.84288373818804+24.032471357922237",
-        "category": "science"
-    },
-    "Dobriy Druh": {
-        "location": "49.843900092069404+24.030807576255405",
-        "category": "pub",
-        "description": """
-The beer restaurant "Good Friend" will provide you with the opportunity to relax after work.
-Here everyone will feel easy / completely free. Beer bars are exactly what all lovers of relaxation need.
-You will love us!
-"""
-    },
-    "Греко-католицький архикатедральний собор Святого Юра": {
-        "location": "49.838838607607045+24.012932156072566",
-        "category": "pub"
-    },
-    "Шевченківський гай": {
-        "location": "49.84358198924415+24.064457826316634",
-        "category": "pub",
-        "description": """
-The beer restaurant "Good Friend" will provide you with the opportunity to relax after work.
-Here everyone will feel easy / completely free. Beer bars are exactly what all lovers of relaxation need.
-You will love us!
-"""
-    },
-    "Стрийський парк": {
-        "location": "49.82363663136955+24.0250393468649",
-        "category": "pub",
-        "description": """
-The beer restaurant "Good Friend" will provide you with the opportunity to relax after work.
-Here everyone will feel easy / completely free. Beer bars are exactly what all lovers of relaxation need.
-You will love us!
-"""
-    }
-}
-
-routes = {
-    "Route_1": ["Костел і монастир Бернардинів", "Храм Успіння Пресвятої Богородиці",
-                "Lviv National University Faculty of Economics"],
-    "Route_2": ["Under Black Eagle", "Стрийський парк", "Шевченківський гай"],
-    "Route_3": ["Греко-католицький архикатедральний собор Святого Юра", "Храм Успіння Пресвятої Богородиці",
-                "Dobriy Druh"]
-}
-
 user_active_route = {
 
-}
-
-user_curr_location = {
-    "current": " "
 }
 
 G_MAPS_URL = "https://www.google.com/maps/dir/"
@@ -116,7 +49,14 @@ def deg_2_rad(deg):
     return deg * (math.pi / 180)
 
 
-# Метод для відображення списку категорій для коистувача
+# Метод для відображення списку категорій для користувача
+
+#--------------------------------------------------------------------------
+# markup - При створенні пуста користувацька клавіатура                   -
+# itembtn1 - Кнопка, після натискання якої надсилається перелік маршрутів -
+# itembtn2 - Кнопка, після натискання якої надсилається перелік ресторанів-
+# itembtn3 - Кнопка, після натискання якої надсилається перелік готелів   -
+#--------------------------------------------------------------------------
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
@@ -128,6 +68,11 @@ def start(message):
 
 
 # Метод для встановлення початкової позиції користувача
+
+#--------------------------------------------------------------------------
+# button_geo - Кнопка, після натискання якої надсилається поточна локація -
+# keyboard - При створенні пуста користувацька клавіатура                 -
+#--------------------------------------------------------------------------
 @bot.message_handler(commands=["geo"])
 def geo(message):
     button_geo = types.KeyboardButton(text="Надіслати локацію", request_location=True)
@@ -137,14 +82,22 @@ def geo(message):
 
 
 # Метод для повернення тепершіньої локації користувача
+
+#--------------------------------------------------------------------------
+# start_location - Змінна у яку записується ваша локація відформатована   -
+#--------------------------------------------------------------------------
 @bot.message_handler(content_types=["location"])
 def location(message):
     if message.location is not None:
         start_location = f"/{message.location.latitude}" + "+" + f"{message.location.longitude}"
-        user_curr_location["current"].replace(" ", f"{start_location}")
     return start_location
 
+
 # Метод для відображення списку доступних марщрутів
+
+#--------------------------------------------------------------------------
+# markup - При створенні пуста користувацька клавіатура                   -
+#--------------------------------------------------------------------------
 @bot.callback_query_handler(lambda a: a.data == 'route')
 def list_routes(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
@@ -157,12 +110,17 @@ CHOSEN_ROUTE = 'chosen_route_'
 
 
 # Метод для надсилання деталей вибраного маршруту
+
 @bot.callback_query_handler(lambda call: call.data.startswith(CHOSEN_ROUTE))
 def sendroute(message):
     bot.send_message(message.message.chat.id, get_direction(routes[message.data.replace(CHOSEN_ROUTE, '')], message.message))
 
 
 # Метод для встоновлення активного маршруту
+
+#--------------------------------------------------------------------------------
+# user_active_route - Словник в який додається ідентифікатор вибраного маршруту -
+#--------------------------------------------------------------------------------
 @bot.callback_query_handler(lambda a: a.data.startswith(CHOSEN_ROUTE))
 def set_active_route(message):
     user_active_route[message.message.chat.username] = list(map(
@@ -173,6 +131,12 @@ def set_active_route(message):
 
 
 # Метод для отримання тепершіньої локації користувача
+
+#-------------------------------------------------------------------------------
+# start_location - Викликає функцію location, та отримує останню відому локацію-
+# lat_lon - Додає координати точок у маршруті, у форматування для гугл карт    -
+# return... - Повертає посилання на готовий маршрут                            -
+#-------------------------------------------------------------------------------
 @bot.callback_query_handler(lambda a: a.data == 'geo')
 def get_direction(routes, message):
     route_details = [(route, places[route]) for route in routes]
@@ -182,6 +146,11 @@ def get_direction(routes, message):
 
 
 # Метод для надсилання інформації про категорію кафе
+
+#-----------------------------------------
+# cursor.execute - отримує дані із БД    -
+# result - поверта дані в вигляді масиву -
+#-----------------------------------------
 @bot.callback_query_handler(lambda call: call.data == 'caffe')
 def send_caffes(message):
     cursor.execute("SELECT photoOfCaffe, caffe FROM info")
@@ -189,13 +158,20 @@ def send_caffes(message):
     for x in result:
         bot.send_message(message.message.chat.id, f"{x}")
 
+
 # Метод для надсилання інформації про категорію готелі
+
+#-----------------------------------------
+# cursor.execute - отримує дані із БД    -
+# result - поверта дані в вигляді масиву -
+#-----------------------------------------
 @bot.callback_query_handler(lambda a: a.data == 'restaurant')
 def send_hotels(message):
    cursor.execute("SELECT photoOfHotels, hotels FROM info")
    result = cursor.fetchall()
    for x in result:
        bot.send_message(message.message.chat.id, f"{x}")
+
 
 # Метод для обробки http запитів від телеграм бота
 @app.route("/", methods=['POST'])
@@ -212,6 +188,7 @@ def webhook():
 
 
 bot.polling()
+
 
 if __name__ == "__main__":
     app.run(debug=True)
